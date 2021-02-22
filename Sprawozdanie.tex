@@ -1,0 +1,275 @@
+\documentclass[]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage{amsmath}
+\usepackage{mathtools}
+\usepackage{listings}
+\usepackage{polski}
+\usepackage{graphicx}
+
+
+%opening
+\title{Projekt Ilościowe miary ryzyka, model Var oraz testowanie wsteczne }
+\author{Mateusz Jakubczak}
+
+
+
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+	
+	Projekt przedstawia wyniki modelowania stup zwrotu dla spółki M-bank od 2010 do 2020. Modelowanie została przeprowadzone przy pomocy VaR(Value at risk), EWMA(exponentially weighted moving average), GARCH oraz ARCH (Auto-Regressive Conditional Heteroskedasticity) oraz symulacji Monte Carlo.
+	
+\end{abstract}
+
+
+\newpage
+
+\tableofcontents{}
+
+
+\newpage
+
+
+\section{Wstęp}
+Praca obejmuje modelowanie na danych dla CD Project Red ze strony stooq.com. 
+Zakres czasowy w których wykonuje się modelowanie to 250 dniowe okno,  oznaczające mniej więcej jeden rok(w dniach roboczych). Projekt został podzielony na wstępną analizę danych, dogłębna analizę każdego typu modeli  oraz podsumowanie wyników. 
+
+\section{Analiza zwrotów}
+	Wybraną spółka do analizy jest M-bank w latach od 2010 do 2020. 
+	Przed przestąpieniem do analizy oraz modelowania VaR należy zobaczy jak wyglądają nasz dane. 
+	\subsection{Statystyki Opisowe}
+	Poniższy wykres przedstawia jak kształtowała się Cena zamknięcia akcji M-Banku 
+	\begin{figure}[h!]
+		\centering
+		\includegraphics[width=0.7\linewidth]{Akcje.png}
+		\caption{}
+		\label{fig:akcje}
+	\end{figure}
+	\newpage
+	Jak łatwo możemy zauważyć wykres ten nie jest stacjonarnym więc żeby doprowadzić do stacjonraności będziemy skupiając się na analizie logarytmicznych stóp zwrotu. Innym możliwym podejściem jest liczenie używając zwykłych stóp zwrotu jednak one nie radzą sobie dobrze z dużymi  ruchami ceny. Poniższy wykres przedstawia te stopy zwrotu \begin{figure}[h!]
+		\centering
+		\includegraphics[width=0.7\linewidth]{Zwroty.png}
+		\caption{}
+		\label{fig:zwroty}
+	\end{figure}
+	Widzimy z wykresu że mamy heteroskedastyczność zmienności dlatego użycie całego szeregu czasowego do modelowania jest nie odpowiednim podejściem do problemu. 
+	W dalszej analizę modeli większość z nich używa 250 dniowego okna. Poniższe wykresy przedstawiają zmiany średniej i odchylenia standardowego w oknie 250 dniowym. 
+	
+	\begin{figure}[h!]
+		\centering
+		\includegraphics[width=0.7\linewidth]{srednieOkno.png}
+		\caption{}
+		\label{fig:srednieokno}
+	\end{figure}
+	\newpage
+	Jak widzimy  średnia oscyluje nam w okolicach zera co świadczy o tym że możemy założyć iż jest równa 0, i świadczy to też o stacjonraności naszego szeregu. 
+	\begin{figure}[h!]
+		\centering
+		\includegraphics[width=0.7\linewidth]{odchylenieOkno.png}
+		\caption{}
+		\label{fig:odchylenieokno}
+	\end{figure}
+\\\\
+	Sytuacja z odchyleniem standardowym potwierdza nam nasze przypuszczenia o heteroskedastyczności zmienności, gdzie szczególnie to widać w roku 2020, gdzie odchylenie standardowe wzrosło dwukrotnie w porównaniu do poprzednich lat. 
+	
+	
+	
+	\subsection{Testy normalności}
+	Ważnym aspektem żeby dalsze modelowanie naszego szeregu czasowego miało sens jest spełnienie założeń o normalności stopy zwrotu, braku autokorelacji oraz stacjonraności szeregu. 
+	\\
+	Żeby sprawdzić stacjonarność użyjemy testu ADF(Augmented Dickey–Fuller) którego hipoteza zerowa zakłada o nie stacjonraności szeregu natomiast alternatywna mówi że jest stacjonarny bądz stacjonarny z trendem. 
+	$$ \text{P-Value} = 0.0000 $$
+	Bardzo niska wartość P-Value oznacza że możemy być pewni iz szereg jest stacjonarny. \\
+	
+	Autorelacje sprawdzimy z korzystając z wykresu ACF, gdzie niebieskie pole reprezentuje pole gdzie nie odrzucamy hipotezy zerowej o wartości autokorelacja równej zero na poziomie ufności $\alpha = 0.05$. Patrząc na poniższy wykres widzimy że nie ma znaczących autokorelacji w naszych stopach zwrotu.
+	\begin{figure}[h!]
+		\centering
+		\includegraphics[width=0.7\linewidth]{autokorelacja.png}
+		\caption{}
+		\label{fig:autokorelacja}
+	\end{figure}
+	
+	Ostatnim Warunkiem do spełnienia jest normalność rozkładu. Biorąc histogram dla całego szeregu czasowego widzimy że rozkład bardzo przypomina normalny jednak możemy zważyć dosyć duże spłaszczenie wraz z grubymi ogonami, które rozciągają skalowanie wykresu. 
+	\begin{figure}[h!]
+		\centering
+		\includegraphics[width=0.7\linewidth]{rozklad.png}
+		\caption{}
+		\label{fig:rozklad}
+	\end{figure}
+	Jednak nasze analizy będą się skupiały na oknie 250 dniowym wiec zobaczmy jak wygląda zmiana p-Value w czasie.\\
+	
+	\begin{figure}[h!]
+		\centering
+		\includegraphics[width=0.7\linewidth]{testyNorm.png}
+		\caption{}
+		\label{fig:testynorm}
+	\end{figure}
+	
+	Z wykresu widzimy hipotezę zerową o normalności rozkładu odrzucamy poza latami miedzy 2018 a początkiem 2020 gdzie ten okres nie pozwala na odrzucenie hipotezy zerowej. 
+	
+	
+	
+	\subsection{Wnioski z wstępnej analizy}
+	Analizując wstępnie dane widać że mamy rozkład z grubymi ogonami przez większość czasu wraz z heteroskedastyczności zmiennych co oznacza że modelowanie naszego VaR będzie trudne a samym wynikom VaR nie możemy do końca ufać, gdyż nie spełniamy założeń tego modelu. 
+
+\section{Symulacje VaR}
+	\subsection{Wstęp do VaR }
+	VaR(Value at Risk) jest to model do zaradzania ryzykiem, który kwantyfikuje nam ryzyko starty powyżej ustalanej dla VaR-a wartości. Model VaR jest nam w stanie powiedzieć jakie powinno być nasze zabezpieczenie że w x\% przypadków nasza strata nie przekroczyła danego poziomu. W dalszej analizie prominenty jest VaR dla wszystkich danych i analizowany jest tylko VaR na przesuwającym się oknie o długości 250 dni. 
+	
+	\subsection{Metoda historyczna}
+	Metoda historyczna przedstawia VaR estymowanego w oknie 250 dni dla poziomu 95\% oraz 99\%
+	\begin{figure}[h!]
+		\centering
+		\includegraphics[width=0.7\linewidth]{varhist.png}
+		\caption{}
+		\label{fig:varhist}
+	\end{figure}
+	
+	
+	\subsection{Metoda historyczna z wagami}
+	VaR w przypadku prostego okna ma wadę że tak samo traktuje obserwacje z dnia wcześniej jak i z 200 dni wcześniej. Żeby temu przeciwdziałać i lepiej estymować VaR, użyjemy wag, gdzie do każdej obserwacji jest przypisana waga z czym najświeższe obserwacje mają najwyższe wagi. 
+	
+	\begin{figure}[h!]
+		\centering
+		\includegraphics[width=0.7\linewidth]{varWag.png}
+		\caption{}
+		\label{fig:varwag}
+	\end{figure}
+	
+	
+	
+	\subsection{Testy wsteczne}
+	Testy wsteczne użyte do sprawdzenia poprawności oszacowanego modelu VaR to test Kupca, Christoffersen oraz Test wartości rzeczywistych, opierający się na rozkładzie dwumianowym. Wszystkie testy zostały przeprowadzone na 250 dniowym oknie i ich wyniki obrazują odsetek odrzuceń hipotezy zerowej na poziomi ufności 0.05. 
+	Test kupca sprawdza czy ilość odrzuceń jest zgodna z założeniami VaR, czyli czy nasz VaR rzeczywiście odrzuca 5\% obserwacji. \\
+	Test Christoffersen sprawdza czy obserwacje są nie zależne w czasie, na przykład czy są trzy duże ruchy pod rząd, odrzucenie hipotezy zerowej świadczy o tym że taki ruch lub podobny mógł wystąpić. \\
+	Test wartości rzeczywistej sprawdza czy ilość obserwacji odstających jest w przedziale ufności.
+	\\
+	Dla VaR Historycznego  mamy \\
+	\begin{tabular}{|c|c|c|}
+		\hline
+		& VaR 95 & VaR 99 \\
+		\hline
+		Kupca & - & - \\
+		\hline
+		Wartości & 0.30 & 0.17 \\
+		\hline
+		Christofersena & 0.20 & 0.09 \\
+		\hline
+	\end{tabular}\\
+	Interpretując wyniki możemy stwierdzić że VaR nie został odpowiednio wy estymowany. 
+	Test historyczny dla kupca nie ma sensu ponieważ sprawdzamy czy VaR, który policzyliśmy jest VaR-em \\
+	
+		\begin{tabular}{|c|c|c|}
+		\hline
+		& VaR 95 & VaR 99 \\
+		\hline
+		Kupca & 0.14 & 0.90 \\
+		\hline
+		Wartości & 0.14 & 0.0 \\
+		\hline
+		Christoffersen & 0.13 & 0.0 \\
+		\hline
+	\end{tabular}
+\\
+	VaR 95\% wydaje się być dobrze estymowany biorąc poprawkę na trudność w estymacji naszego szeregu, natomiast Var 99\% pokazuje że nasz model z pewnością się źle wystosowywał dając nam bardzo podejżane wartości. 
+	
+	
+\section{EWMA}
+	\subsection{Wstęp do EWMA }
+	EWMA to model który modeluje zmienność licząc ja na podstawie szeregu geometrycznego gdzie odchylenie t+1 jest równe poprzednimi odchyleni pomnożonemu razy eksponencjalne ważoną średnią ruchomą 
+	
+	\subsection{Modelowane EWMA}
+	\begin{figure}[h!]
+		\centering
+		\includegraphics[width=0.7\linewidth]{varEwma.png}
+		\caption{}
+		\label{fig:varewma}
+	\end{figure}
+	
+	
+
+	\subsection{Testy wsteczne}
+	Przeprowadzając te samy testy wsteczny otrzymujemy wyniki: 
+	\\
+	\begin{tabular}{|c|c|c|}
+		\hline
+		& VaR 95 & VaR 99 \\
+		\hline
+		Kupca & 0.89 & 0.90 \\
+		\hline
+		Wartości & 0.90 & 0.0 \\
+		\hline
+		Christofersena & 0.75 & 0.75 \\
+		\hline
+	\end{tabular}
+	\\
+	Możemy bez wątpienia stwierdzić że model ten źle estymuje VaR
+	
+\section{GARCH }
+	\subsection{Wstęp do GARCH  }
+	Garch jest kolejnym podejściem parametrycznym który stara się modelować zmienność szeregu czasowego. Dzięki większej ilości parametrów i dobraniu parametrów do danych, możemy oczekiwać tutaj najlepszych wyników 
+	
+	\subsection{Modelowanie GARCH }
+	\begin{figure}[h!]
+		\centering
+		\includegraphics[width=0.7\linewidth]{grach.png}
+		\caption{}
+		\label{fig:grach}
+	\end{figure}
+	
+	obserwując wykres mamy inny wykres w porównaniu do poprzednich wykresów bardziej dynamicznie szacowany VaR co sprawia że bardziej możemy zaufać wartościom VaR
+	
+	\subsection{Testy wsteczne}
+	Na dobre dopasowanie VaR wskazują wyniki testów
+		\\
+	\begin{tabular}{|c|c|c|}
+		\hline
+		& VaR 95 & VaR 99 \\
+		\hline
+		Kupca & 0.14 & 0.0 \\
+		\hline
+		Wartości & 0.13 & 0.44 \\
+		\hline
+		Christoffersen &0.13 & 0.00 \\
+		\hline
+	\end{tabular}
+	\\
+	Wskazują one na dobrą estymacje VaR 95\% oraz zawyżoną estymację VaR 99\% 
+	
+\section{Monte Carlo}
+	\subsection{Wstęp do Monte Carlo }
+	Metoda Monte Carlo polega na wielokrotnym symulowaniu jak zachował by się nasz VaR w sytuacji gdy nasz szereg czasowy byłby losowany ze stałej dystrybucji. Użyta w tym przypadku dystrybucja to rozkład normalny dopasowany do danych. Nie spodziewamy się tu dobrych wyników ponieważ bierzemy średnią z wszystkich symulacji, których było 100 co sprawi że nasz VaR będzie gładki i prawdopodobnie gorszy niż VaR policzony metodą historyczną na całym zbiorze danych. Obrazuje to Wykres VaR oraz testy wsteczne. \\
+	\begin{figure}[h!]
+		\centering
+		\includegraphics[width=0.7\linewidth]{montecarlo.png}
+		\caption{}
+		\label{fig:montecarlo}
+	\end{figure}
+	
+	
+	
+	\subsection{Testy wsteczne}
+		
+	\begin{tabular}{|c|c|c|}
+		\hline
+		& VaR 95 & VaR 99 \\
+		\hline
+		Kupca & 0.66 & 0.52 \\
+		\hline
+		Wartości & 0.67 & 0.16 \\
+		\hline
+		Christoffersen &0.66 & 0.16 \\
+		\hline
+	\end{tabular}
+	\\
+	Znów widzimy że VaR nie został poprawnie wy estymowany. 
+\section{Podsumowanie}
+
+Podsumowując metoda VaR dla dynamicznej i zmienne stopy zwrotu akcji M-Banku okazała się trudna gdyż nie udało się wy estymować dobrego modelu VaR, gdzie najbliżej dobrej estymacji udało nam się dojść w przypadku modelowania GARCH. Wynika to z dużej zmienności cen akcji oraz wzmożonej zmienności w roku 2020 która była nie do przewidzenia przez nasze modele powodując największy odsetek odrzuceń hipotez zerowych naszych testów wstecznych.
+
+
+\end{document}
